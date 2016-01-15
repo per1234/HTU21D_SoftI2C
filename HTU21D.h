@@ -17,15 +17,15 @@ Temperature Sensor
 */
  /**************************************************************************/
 
-#ifndef HTU21D_h
-#define HTU21D_h
+#ifndef HTU21D_SoftI2C_h
+#define HTU21D_SoftI2C_h
 
 #if ARDUINO >= 100
  #include <Arduino.h>
 #else
  #include <WProgram.h>
 #endif
- #include <Wire.h>
+ #include "SoftI2CMaster.h"
 
 #define HTDU21D_ADDRESS     0x40    /* I2C address */
 
@@ -68,10 +68,11 @@ OFF = 0xFB   /* Heater OFF */
 }
 toggleHeaterSwitch;
 
-class HTU21D
+class HTU21D_SoftI2C
 {
   public:
-  HTU21D(HTU21D_Resolution = HTU21D_RES_RH12_TEMP14);
+  HTU21D_SoftI2C(SoftI2CMaster*);
+  HTU21D_SoftI2C(HTU21D_Resolution = HTU21D_RES_RH12_TEMP14);
 
   bool    begin(void);
   float   readHumidity(humdOperationMode = TRIGGER_HUMD_MEASURE_HOLD);    //Accuracy +-2%RH     in range 20%RH - 80%RH at 25deg.C only
@@ -81,9 +82,12 @@ class HTU21D
   void    softReset(void);
   bool    batteryStatus(void);
   void    setHeater(toggleHeaterSwitch it);
+  void    reset(void);
 
   private:
-  void     write8 (uint8_t reg, uint32_t value);
+  SoftI2CMaster *i2c;
+  //void     write8 (uint8_t reg, uint32_t value);
+  void     write8 (int reg, int value);
   uint8_t  read8 (uint8_t reg);
   uint8_t  checkCRC8(uint16_t data);
 
