@@ -4,6 +4,7 @@ This is an Arduino library for HTU21D, Si7021 and SHT21 Digital Humidity &
 Temperature Sensor
 
   written by enjoyneering79
+  modified by luetzel for SoftI2C
 
   These sensor uses I2C to communicate, 2 pins are required to  
   interface
@@ -17,15 +18,21 @@ Temperature Sensor
 */
  /**************************************************************************/
 
-#include "HTU21D.h"
+#include "HTU21D_SoftI2C.h"
+#if defined(__AVR__)
+#include <util/delay.h>
+#endif
 
+HTU21D_SoftI2C::HTU21D_SoftI2C(SoftI2CMaster* _i2c) {
+    i2c = _i2c;
+}
 
 /**************************************************************************/
 /*
     Constructor
 */
 /**************************************************************************/
-HTU21D::HTU21D(HTU21D_Resolution it)
+HTU21D_SoftI2C::HTU21D_SoftI2C(HTU21D_Resolution it)
 {
   _HTDU21Dinitialisation = false;
   _HTU21D_Resolution = it;
@@ -36,7 +43,7 @@ HTU21D::HTU21D(HTU21D_Resolution it)
     Initializes I2C and configures the sensor (call this function before
     doing anything else)
 
-    Wire.endTransmission():
+    i2c.endTransmission():
     0 - success
     1 - data too long to fit in transmit data16
     2 - received NACK on transmit of address
@@ -44,13 +51,14 @@ HTU21D::HTU21D(HTU21D_Resolution it)
     4 - other error
 */
 /**************************************************************************/
-bool HTU21D::begin(void)
+bool HTU21D_SoftI2C::begin(void)
 {
-  Wire.begin();
+
+  //softReset();
 
   /* Make sure we're actually connected */
-  Wire.beginTransmission(HTDU21D_ADDRESS);
-  if (Wire.endTransmission() != 0)
+  i2c->beginTransmission(HTDU21D_ADDRESS);
+  if (i2c->endTransmission() != 0)
   {
     return false;
   }
@@ -68,7 +76,7 @@ bool HTU21D::begin(void)
     Sets sensor's resolution
 */
 /**************************************************************************/
-void HTU21D::setResolution(HTU21D_Resolution it)
+void HTU21D_SoftI2C::setResolution(HTU21D_Resolution it)
 {
   uint8_t userRegisterData;
 
@@ -101,20 +109,20 @@ void HTU21D::setResolution(HTU21D_Resolution it)
     NOTE: All registers set to default exept heater bit.
 */
 /**************************************************************************/
-void HTU21D::softReset(void)
+void HTU21D_SoftI2C::softReset(void)
 {
   if (_HTDU21Dinitialisation != true)
   {
     begin();
   }
 
-  Wire.beginTransmission(HTDU21D_ADDRESS);
+  i2c->beginTransmission(HTDU21D_ADDRESS);
   #if ARDUINO >= 100
-    Wire.write(SOFT_RESET);
+    i2c->write(SOFT_RESET);
   #else
-    Wire.send(SOFT_RESET);
+    i2c->send(SOFT_RESET);
   #endif
-  Wire.endTransmission();
+  i2c->endTransmission();
   delay(15);
 }
 
@@ -126,7 +134,7 @@ void HTU21D::softReset(void)
     if VDD<2.25v -+0.1v return FALSE
 */
 /**************************************************************************/
-bool HTU21D::batteryStatus(void)
+bool HTU21D_SoftI2C::batteryStatus(void)
 {
   uint8_t userRegisterData;
   
@@ -158,7 +166,7 @@ bool HTU21D::batteryStatus(void)
     Mostly used for diagnostic of sensor's functionality
 */
 /**************************************************************************/
-void HTU21D::setHeater(toggleHeaterSwitch it)
+void HTU21D_SoftI2C::setHeater(toggleHeaterSwitch it)
 {
   uint8_t userRegisterData;
   
@@ -198,7 +206,7 @@ void HTU21D::setHeater(toggleHeaterSwitch it)
       sensor is measuring.
 */
 /**************************************************************************/
-float HTU21D::readHumidity(humdOperationMode it)
+float HTU21D_SoftI2C::readHumidity(humdOperationMode it)
 {
   uint8_t   Checksum;
   uint8_t   pollCounter;
@@ -206,14 +214,14 @@ float HTU21D::readHumidity(humdOperationMode it)
   float     Humidity;
 
   /* Request a humidity reading */
-  Wire.beginTransmission(HTDU21D_ADDRESS);
+  i2c->beginTransmission(HTDU21D_ADDRESS);
   #if ARDUINO >= 100
-    Wire.write(it);
+    i2c->write(it);
   #else
-    Wire.send(it);
+    i2c->send(it);
   #endif
   delay(20);
-  if (Wire.endTransmission() != 0)
+  if (i2c->endTransmission() != 0)
   {
     return(0.00);
   }
@@ -236,28 +244,28 @@ float HTU21D::readHumidity(humdOperationMode it)
   }
 
   /* poll to check the end of the measurement */
-  Wire.requestFrom(HTDU21D_ADDRESS, 3);
-  while (Wire.available() < 3)
-  {
-    pollCounter++;
-    if (pollCounter > 16)
-    {
-      return(0.00);
-    }
-    delay(5);
-  }
+  i2c->requestFrom(HTDU21D_ADDRESS);
+  //while (i2c->available() < 3)
+  //{
+  //  pollCounter++;
+  //  if (pollCounter > 16)
+  //  {
+  //    return(0.00);
+  //  }
+  //  delay(5);
+  //}
 
   /* Reads MSB byte, LSB byte & Checksum */
   #if ARDUINO >= 100
-    rawHumidity   = Wire.read();  /* Reads MSB byte */
+    rawHumidity   = i2c->read();  /* Reads MSB byte */
     rawHumidity <<= 8;
-    rawHumidity  |= Wire.read();  /* reads LSB byte and sum. with MSB byte */
-    Checksum      = Wire.read();
+    rawHumidity  |= i2c->read();  /* reads LSB byte and sum. with MSB byte */
+    Checksum      = i2c->read();
   #else
-    rawHumidity   = Wire.receive();
+    rawHumidity   = i2c->receive();
     rawHumidity <<= 8;
-    rawHumidity  |= Wire.receive();
-    Checksum      = Wire.receive();
+    rawHumidity  |= i2c->receive();
+    Checksum      = i2c->receive();
   #endif
 
   if (checkCRC8(rawHumidity) != Checksum)
@@ -289,7 +297,7 @@ float HTU21D::readHumidity(humdOperationMode it)
       sensor is measuring. 
 */
 /**************************************************************************/
-float HTU21D::readTemperature(tempOperationMode it)
+float HTU21D_SoftI2C::readTemperature(tempOperationMode it)
 {
   uint8_t   Checksum;
   uint8_t   pollCounter;
@@ -297,14 +305,14 @@ float HTU21D::readTemperature(tempOperationMode it)
   float     Temperature;
 
   /* Request a humidity reading */
-  Wire.beginTransmission(HTDU21D_ADDRESS);
+  i2c->beginTransmission(HTDU21D_ADDRESS);
   #if ARDUINO >= 100
-    Wire.write(it); 
+    i2c->write(it); 
   #else
-    Wire.send(it);
+    i2c->send(it);
   #endif
   delay(20);
-  if (Wire.endTransmission() != 0)
+  if (i2c->endTransmission() != 0)
   {
     return(0.00);
   }
@@ -327,28 +335,28 @@ float HTU21D::readTemperature(tempOperationMode it)
   }
 
   /* poll to check the end of the measurement */
-  Wire.requestFrom(HTDU21D_ADDRESS, 3);
-  while (Wire.available() < 3)
-  {
-    pollCounter++;
-    if (pollCounter > 16)
-    {
-      return(0.00);
-    }
-    delay(5);
-  }
+  i2c->requestFrom(HTDU21D_ADDRESS);
+  //while (i2c->available() < 3)
+  //{
+  //pollCounter++;
+  //if (pollCounter > 16)
+  //{
+  //  return(0.00);
+  //}
+  //  delay(5);
+  //}
 
   /* Reads MSB byte, LSB byte & Checksum */
    #if ARDUINO >= 100
-    rawTemperature   = Wire.read(); /* reads MSB byte */
+    rawTemperature   = i2c->read(); /* reads MSB byte */
     rawTemperature <<= 8;
-    rawTemperature  |= Wire.read(); /* reads LSB byte and sum. with MSB byte */
-    Checksum         = Wire.read();
+    rawTemperature  |= i2c->read(); /* reads LSB byte and sum. with MSB byte */
+    Checksum         = i2c->read();
   #else
-    rawTemperature   = Wire.receive();
+    rawTemperature   = i2c->receive();
     rawTemperature <<= 8;
-    rawTemperature  |= Wire.receive();
-    Checksum         = Wire.receive();
+    rawTemperature  |= i2c->receive();
+    Checksum         = i2c->receive();
   #endif
 
   if (checkCRC8(rawTemperature) != Checksum)
@@ -369,7 +377,7 @@ float HTU21D::readTemperature(tempOperationMode it)
     Accuracy +-2%RH in range 0%RH - 100%RH at tmp. range 0deg.C - 80deg.C
 */
 /**************************************************************************/
-float HTU21D::readCompensatedHumidity(void)
+float HTU21D_SoftI2C::readCompensatedHumidity(void)
 {
   float humidity;
   float temperature;
@@ -393,17 +401,18 @@ float HTU21D::readCompensatedHumidity(void)
     Writes 8 bit value to the register over I2C
 */
 /**************************************************************************/
-void HTU21D::write8 (uint8_t reg, uint32_t value)
+//void HTU21D_SoftI2C::write8(uint8_t reg, uint32_t value)
+void HTU21D_SoftI2C::write8(int reg, int value)
 {
-  Wire.beginTransmission(HTDU21D_ADDRESS);
+  i2c->beginTransmission(HTDU21D_ADDRESS);
   #if ARDUINO >= 100
-    Wire.write(reg);
-    Wire.write(value);
+    i2c->write(reg);
+    i2c->write(value);
   #else
-    Wire.send(reg);
-    Wire.send(value);
+    i2c->send(reg);
+    i2c->send(value);
   #endif
-  Wire.endTransmission();
+  i2c->endTransmission();
 }
 
 /**************************************************************************/
@@ -411,21 +420,21 @@ void HTU21D::write8 (uint8_t reg, uint32_t value)
     Reads 8 bit value over I2C
 */
 /**************************************************************************/
-uint8_t HTU21D::read8(uint8_t reg)
+uint8_t HTU21D_SoftI2C::read8(uint8_t reg)
 {
-  Wire.beginTransmission(HTDU21D_ADDRESS);
+  i2c->beginTransmission(HTDU21D_ADDRESS);
   #if ARDUINO >= 100
-    Wire.write(reg);
+    i2c->write(reg);
   #else
-    Wire.send(reg);
+    i2c->send(reg);
   #endif
-  Wire.endTransmission();
+  i2c->endTransmission();
 
-  Wire.requestFrom(HTDU21D_ADDRESS, 1);
+  i2c->requestFrom(HTDU21D_ADDRESS);
   #if ARDUINO >= 100
-    return Wire.read();
+    return i2c->read();
   #else
-    return Wire.receive();
+    return i2c->receive();
   #endif
 }
 
@@ -438,7 +447,7 @@ uint8_t HTU21D::read8(uint8_t reg)
     http://en.wikipedia.org/wiki/Computation_of_cyclic_redundancy_checks
 */
 /**************************************************************************/
-uint8_t HTU21D::checkCRC8(uint16_t data)
+uint8_t HTU21D_SoftI2C::checkCRC8(uint16_t data)
 {
   for (uint8_t bit = 0; bit < 16; bit++)
   {
