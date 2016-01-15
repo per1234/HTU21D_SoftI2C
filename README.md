@@ -2,8 +2,7 @@
 This is an Arduino library for HTU21D, Si7021 and SHT21 Digital Humidity & Temperature Sensor.
 The library was ported for Arduino/ ATtiny using SoftwareI2C, which allows any two pins to be SDA & SCL.
 
-The Library was forked from: https://github.com/enjoyneering/HTU21D.
-It depends on todbot's SoftI2CMaster library https://github.com/todbot/SoftI2CMaster
+It was forked from https://github.com/enjoyneering/HTU21D and it depends on todbot's SoftI2CMaster library https://github.com/todbot/SoftI2CMaster
 
 Supports all sensors features:
 
