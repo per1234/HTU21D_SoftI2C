@@ -2,7 +2,7 @@
 /* 
 This is an Arduino library for SHT21 & HTU21D Digital Humidity & Temperature Sensor
 
-Written by enjoyneering79 
+Written by enjoyneering79 https://github.com/enjoyneering/HTU21D
 Modified by luetzel for use with SoftwareI2CMaster https://github.com/todbot/SoftI2CMaster 
 
 These sensor uses I2C to communicate, 2 pins are required to interface
