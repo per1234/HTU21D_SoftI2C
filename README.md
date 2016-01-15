@@ -1,4 +1,4 @@
-# HTU21D
+# HTU21D_SoftI2C
 This is an Arduino library for HTU21D, Si7021 and SHT21 Digital Humidity & Temperature Sensor
 
 Supports all sensors features:
@@ -10,3 +10,4 @@ Supports all sensors features:
 - soft Reset
 - check Battery Status
 - turn ON/OFF build-in Heater
+# HTU21D_SoftI2C
